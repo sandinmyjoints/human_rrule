@@ -12,7 +12,8 @@ Copyright (c) 2011. All rights reserved.
 import sys
 import os
 import unittest
-from datetime import datetime
+from datetime import datetime, time
+from UserDict import UserDict
 
 import dateutil
 from dateutil.rrule import * # gets DAILY, WEEKLY, MONTHLY, etc.
@@ -107,7 +108,7 @@ class rrule2text(rr):
         byeaster = self._byeaster
         bymonthday = self._bymonthday # Relative day of the month
         bynmonthday = self._bynmonthday # Negative relative day of the month
-        bysetpos = self._bysetpos # Must be between -366 and -1 or 1 and 366.
+        bysetpos = self._bysetpos # For sets of seconds/minutes/hours/days/weeks/months/years, specifies which position in the list to pay attention to.
         byhour = self._byhour
         byminute = self._byminute
         bysecond = self._bysecond
@@ -204,11 +205,71 @@ class rrule2text(rr):
         
     def __ne__(self, other):
         return not (self == other)
+        
+class rr_dict(UserDict):
+    """Represents a verbal description of an rrule.
+    
+    Keys: 
+    frequency
+    interval
+    period
+    time
+    terminal
+    """
+    
+    def __init__(self, frequency=1, interval=1, period=YEARLY, time=time(), terminal=datetime.now()):
+        #self["frequency"] 
+        
+        super(rr_dict, self).__init__()
+    
+def get_rrule_description(rr_dict):
+    """Returns a string consisting of all the values of an rr_dict in order."""
+    
+    if not isinstance(rr_dict, dict):
+        return ""
+        
+    
+def get_dict_vals(pdict):
+    """Recursively includes all and only the values of a dictionary in a string. When it encounters a 
+    dictionary, print_dict_vals prints the values of this dictionary, etc including the 
+    values of any dictionaries contained within a dictionary."""
+
+    # if pdict is not a dict, return without printing anything
+    if not isinstance(pdict, dict):
+        return
+    list = []
+    _get_dict_vals(pdict, list)
+    return ' '.join(list)
+
+def _get_dict_vals(pdict, list):
+    for v in pdict.values():
+        if isinstance(v, dict):
+            _get_dict_vals(v, list)     
+        else:       
+            list.append(v)
+            
     
 class rrule2textTests(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_print_dict_vals(self):
+        d1 = { 
+            'a': "I",
+            'b': {
+                'a': "am",
+                'b': "a"
+                },
+            'c': "recursive",
+            'd': {
+                "a": "but",
+                "b": "simple"
+                },
+            'e': "function."
+        } 
+        self.assertEquals(get_dict_vals(d1), "I am a recursive but simple function.")
+                
+        
     def test_equals(self):
         r1 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15))
         r2 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15))
@@ -231,31 +292,48 @@ class rrule2textTests(unittest.TestCase):
         self.assertFalse(r1==r2)
         
         
-    def test_invalid_freq(self):
-        testrr = rrule2text(8, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-        self.assertRaises(Rrule2textError, testrr.text)
-
-        testrr = rrule2text("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-        self.assertRaises(Rrule2textError, testrr.text)
-
-        testrr = rrule2text(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-        self.assertRaises(Rrule2textError, testrr.text)
+    # def test_invalid_freq(self):
+    #     testrr = rrule2text(8, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(Rrule2textError, testrr.text)
+    # 
+    #     testrr = rrule2text("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(Rrule2textError, testrr.text)
+    # 
+    #     testrr = rrule2text(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(Rrule2textError, testrr.text)
+    #     
+    #     
+    # def test_monthly(self):
+    #     correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
+    #     testrr = rrule2text(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
+    #     self.assertListEqual(testrr.text(), correct)
+    #     
+    #     correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "August 15, 2012"])
+    #     testrr = rrule2text(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
+    #     self.assertListEqual(testrr.text(), correct)
+    # 
+    #     correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "08/15/2012"])
+    #     self.assertListEqual(testrr.text(date_format="%m/%d/%Y"), correct)
+    #     
+    #     correct = map(unicode, ["every other", "first", "Sunday", "at", "21:00", "until", "August 15, 2012"])
+    #     self.assertListEqual(testrr.text(time_format="%H:%M"), correct)
+    #     
+    # def test_yearly(self):
+    #     correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
+    #     correct = "Each third Friday of the year at 12:00 AM ten times"
+    #     correct_dict = {
+    #                     frequency: "Each",
+    #                     interval: "third Friday",
+    #                     period: "of the year",
+    #                     time: {
+    #                         "at 12:00 AM"
+    #                         "to 1:00 AM"
+    #                     },
+    #                     terminal: "ten times"                        
+    #     }
+    #     testrr = rrule2text(YEARLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
+    #     self.assertListEqual(testrr.text(), correct)
         
-        
-    def test_monthly(self):
-        correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
-        testrr = rrule2text(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
-        self.assertListEqual(testrr.text(), correct)
-        
-        correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "August 15, 2012"])
-        testrr = rrule2text(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
-        self.assertListEqual(testrr.text(), correct)
-
-        correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "08/15/2012"])
-        self.assertListEqual(testrr.text(date_format="%m/%d/%Y"), correct)
-        
-        correct = map(unicode, ["every other", "first", "Sunday", "at", "21:00", "until", "August 15, 2012"])
-        self.assertListEqual(testrr.text(time_format="%H:%M"), correct)
 
 
 if __name__ == '__main__':
