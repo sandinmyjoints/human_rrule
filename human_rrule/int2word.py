@@ -52,7 +52,7 @@ def int2word(n):
             nw = twenties[b2] + ones[b1] + t + nw
         if b3 > 0:
             nw = ones[b3] + "hundred " + nw
-    return nw
+    return nw.rstrip()
 
 ############# globals ################
 

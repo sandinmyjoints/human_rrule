@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-rrule2text.py
+human_rrule.py
 
 Created by William Bert on 2011-08-12.
 Copyright (c) 2011. All rights reserved.
@@ -24,7 +24,7 @@ from dateutil.relativedelta import relativedelta as rd
 from int2word import int2word
 
 
-FREQUENCY_MAP = (
+INTERVAL_MAP = (
     (1, u'each'),
     (2, u'every other'),
     (3, u'every third'),
@@ -38,6 +38,23 @@ FREQUENCY_MAP = (
     (11, u'every eleventh'),
     (12, u'every twelfth'),
 )
+
+def get_interval(i):
+    num = int2word(i)
+    return ''.join([num, get_ending(i)])
+    
+def get_ending(i):
+    last_digit = str(i)[-1:]
+    if last_digit == '1':
+        return "st"
+    elif last_digit == '2':
+        return "nd"
+    elif last_digit == '3':
+        return "rd"
+    elif last_digit in ['4', '5', '6', '7', '8', '9', '0']:
+        return "th"
+    else
+        raise ValueError
 
 PERIOD_MAP = {
     YEARLY: "year",
@@ -76,10 +93,10 @@ WEEKDAY_LONG_MAP = (
     (6, u'Saturday')
 )
  
-class Rrule2textError(ValueError):
+class human_rruleError(ValueError):
     pass
 
-class rrule2text(rr): 
+class human_rrule(rr): 
     """Provide methods that return natural language descriptions of a dateutil.rrule 
     (aka a recurrence rule). Useful for describing recurring events in a calendar or
     event app.
@@ -171,7 +188,7 @@ class rrule2text(rr):
         elif freq == SECONDLY:
             pass
         else:
-            raise Rrule2textError, "Frequency value of %s is not valid." % freq
+            raise human_rruleError, "Frequency value of %s is not valid." % freq
         
         if count:
             text_description.append("%s %s" % (int2word(count).rstrip(), "times"))
@@ -181,7 +198,7 @@ class rrule2text(rr):
         return map(unicode, text_description)
         
     def __eq__(self, other):
-        """Compare two rrule2text instances."""
+        """Compare two human_rrule instances."""
         
         attrs = [
          '_byeaster',
@@ -219,11 +236,12 @@ class rr_dict(dict):
     """Represents a verbal description of an rrule.
     
     Keys: 
-    frequency
+    frequency = YEARLY, MONTHLY
     interval
     period
     time
     terminal
+    timezone
     """
     
     def __init__(self, rrule):
@@ -236,6 +254,7 @@ class rr_dict(dict):
         # Populate the rr_dict components with values based on the properties of 
         # self.__rrule
         rr = self.__rrule
+        
         dtstart = rr._dtstart # datetime of when each occurrence starts. Defaults to now, down to the second.
         freq = rr._freq # when the recurrence recurs, secondly through yearly. Required.
         interval = rr._interval # how often the recurrence happens, each time through every nth time. Defaults to 1.
@@ -266,6 +285,8 @@ class rr_dict(dict):
         # Initialize the period. The rest of this will be determined by the frequency.
         self["period"] = ' '.join(["of the", PERIOD_MAP[freq]])
  
+        if byyearday:
+            self["interval"] = " ".join(["the ", byyearday, "th day of the year"])
         if bynweekday:
             # 
             pass
@@ -297,6 +318,7 @@ class rr_dict(dict):
                 self["lasting to"] = dtstart # TODO fix this
                         
         elif freq == WEEKLY:
+            # check wkst to see which day of week is first
             pass
             
         elif freq == DAILY:
@@ -312,12 +334,14 @@ class rr_dict(dict):
             pass               
 
         else:
-            raise Rrule2textError, "Frequency value of %s is not valid." % freq
+            raise human_rruleError, "Frequency value of %s is not valid." % freq
         
         if count:
             self["terminal"] = "%s %s" % (int2word(count).rstrip(), "times")
         elif until:
             self["terminal"] = ["until", until]
+            
+        self["timezone"] = "%s" % tzinfo
         
     def get_rrule(self):
         return self.__rule
@@ -344,6 +368,7 @@ class rr_dict(dict):
         else:
             terminal = self["terminal"]
         desc.append(terminal)
+        desc.append("in the %s time zone" % self["timezone"])
 
         return " ".join(desc)
         
@@ -375,7 +400,7 @@ class rr_dict(dict):
                 list.append(v)
             
     
-class rrule2textTests(unittest.TestCase):
+class human_rruleTests(unittest.TestCase):
     def setUp(self):
         pass
 
@@ -403,47 +428,47 @@ class rrule2textTests(unittest.TestCase):
                 
         
     def test_equals(self):
-        r1 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15))
-        r2 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15))
+        r1 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15))
+        r2 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15))
         self.assertTrue(r1==r2)
         
-        r1 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
-        r2 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
+        r1 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
+        r2 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
         self.assertTrue(r1==r2)
         
     def test_not_equals(self):
-        r1 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15))
-        r2 = rrule2text(MONTHLY, dtstart=datetime(2012, 8, 15))
+        r1 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15))
+        r2 = human_rrule(MONTHLY, dtstart=datetime(2012, 8, 15))
         self.assertFalse(r1==r2)
         
-        r2 = rrule2text(DAILY, dtstart=datetime(2011, 8, 15))
+        r2 = human_rrule(DAILY, dtstart=datetime(2011, 8, 15))
         self.assertFalse(r1==r2)
         
-        r1 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
-        r2 = rrule2text(DAILY, dtstart=datetime(2012, 8, 15), byweekday=TU)
+        r1 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15), byweekday=MO)
+        r2 = human_rrule(DAILY, dtstart=datetime(2012, 8, 15), byweekday=TU)
         self.assertFalse(r1==r2)
         
         
     # def test_invalid_freq(self):
-    #     testrr = rrule2text(8, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(Rrule2textError, testrr.text)
+    #     testrr = human_rrule(8, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(human_rruleError, testrr.text)
     # 
-    #     testrr = rrule2text("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(Rrule2textError, testrr.text)
+    #     testrr = human_rrule("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(human_rruleError, testrr.text)
     # 
-    #     testrr = rrule2text(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(Rrule2textError, testrr.text)
+    #     testrr = human_rrule(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+    #     self.assertRaises(human_rruleError, testrr.text)
     #     
     #     
     def test_monthly(self):
         # correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
         correct = "each third Friday of the month starting at 12:00 AM lasting to 1:00 AM ten times"
-        testrr = rrule2text(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
+        testrr = human_rrule(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
         rd = rr_dict(testrr)
         self.assertEqual(rd.get_description(), correct)
         
         # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "August 15, 2012"])
-        # testrr = rrule2text(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
+        # testrr = human_rrule(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
         # self.assertListEqual(testrr.text(), correct)
         #     
         # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "08/15/2012"])
@@ -465,7 +490,7 @@ class rrule2textTests(unittest.TestCase):
     #                     },
     #                     terminal: "ten times"                        
     #     }
-    #     testrr = rrule2text(YEARLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
+    #     testrr = human_rrule(YEARLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
     #     self.assertListEqual(testrr.text(), correct)
         
 
