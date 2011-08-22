@@ -8,6 +8,11 @@ def int2word(n):
     """
     convert an integer number n into a string of english words
     """
+    if n < 0:
+        raise ValueError, "int2word works with zero and positive integers."
+    elif n == 0:
+        return "zero"
+        
     # break the number into groups of 3 digits using slicing
     # each group representing hundred, thousand, million, billion, ...
     n3 = []
