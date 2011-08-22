@@ -15,14 +15,67 @@ import unittest
 from datetime import datetime, time
 
 import dateutil
-from dateutil.rrule import * # gets DAILY, WEEKLY, MONTHLY, etc.
+from dateutil.rrule import YEARLY, MONTHLY, DAILY, HOURLY, MINUTELY, SECONDLY 
+from dateutil.rrule import MO, TU, WE, TH, FR, SA, SU, weekdays
 from dateutil.rrule import weekday
 from dateutil.rrule import rrule as rr
 from dateutil.relativedelta import relativedelta as rd
 
 from int2word import int2word
 
-        
+
+FREQUENCY_MAP = (
+    (1, u'each'),
+    (2, u'every other'),
+    (3, u'every third'),
+    (4, u'every fourth'),
+    (5, u'every fifth'),
+    (6, u'every sixth'),
+    (7, u'every seventh'),
+    (8, u'every eighth'),
+    (9, u'every ninth'),
+    (10, u'every tenth'),
+    (11, u'every eleventh'),
+    (12, u'every twelfth'),
+)
+
+PERIOD_MAP = {
+    YEARLY: "year",
+    MONTHLY: "month", 
+    DAILY: "day", 
+    HOURLY: "hour", 
+    MINUTELY: "minute", 
+    SECONDLY: "second", 
+}
+
+WEEKDAY_MAP = {
+    u'SU': u"Sunday",
+    u'MO': u"Monday",
+    u'TU': u"Tuesday",
+    u'WE': u"Wednesday",
+    u'TH': u"Thursday",
+    u'FR': u"Friday",
+    u'SA': u"Saturday",
+}
+
+ORDINAL_MAP = (
+    (1,  u'first'),
+    (2,  u'second'),
+    (3,  u'third'),
+    (4,  u'fourth'),
+    (-1, u'last')
+) 
+
+WEEKDAY_LONG_MAP = (
+    (7, u'Sunday'),
+    (1, u'Monday'),
+    (2, u'Tuesday'),
+    (3, u'Wednesday'),
+    (4, u'Thursday'),
+    (5, u'Friday'),
+    (6, u'Saturday')
+)
+ 
 class Rrule2textError(ValueError):
     pass
 
@@ -35,49 +88,6 @@ class rrule2text(rr):
     Recurrence rule to get a natural language description of.
     
     """
-    
-    WEEKDAY_MAP = {
-        u'SU': u"Sunday",
-        u'MO': u"Monday",
-        u'TU': u"Tuesday",
-        u'WE': u"Wednesday",
-        u'TH': u"Thursday",
-        u'FR': u"Friday",
-        u'SA': u"Saturday",
-    }
-    
-    ORDINAL = (
-        (1,  u'first'),
-        (2,  u'second'),
-        (3,  u'third'),
-        (4,  u'fourth'),
-        (-1, u'last')
-    ) 
-    
-    WEEKDAY_LONG = (
-        (7, u'Sunday'),
-        (1, u'Monday'),
-        (2, u'Tuesday'),
-        (3, u'Wednesday'),
-        (4, u'Thursday'),
-        (5, u'Friday'),
-        (6, u'Saturday')
-    )
-    
-    INTERVAL = (
-        (1, u'each'),
-        (2, u'every other'),
-        (3, u'every third'),
-        (4, u'every fourth'),
-        (5, u'every fifth'),
-        (6, u'every sixth'),
-        (7, u'every seventh'),
-        (8, u'every eighth'),
-        (9, u'every ninth'),
-        (10, u'every tenth'),
-        (11, u'every eleventh'),
-        (12, u'every twelfth'),
-    )
 
     def text(self, date_format="%B %d, %Y", time_format="%I:%M %p"):
         """Return a recurrence rule in plain English (or whatever language, once translation
@@ -103,7 +113,7 @@ class rrule2text(rr):
         byweekno = self._byweekno # Which week number a yearly event recurs in.
         byyearday = self._byyearday # Which day of the year a yearly event recurs in.
         byweekday = self._byweekday # Which weekday an event recurs in.
-        bynweekday = self._bynweekday # 
+        bynweekday = self._bynweekday # By the nth weekday, e.g., FR(3) is the third Friday of the period
         byeaster = self._byeaster
         bymonthday = self._bymonthday # Relative day of the month
         bynmonthday = self._bynmonthday # Negative relative day of the month
@@ -121,22 +131,22 @@ class rrule2text(rr):
             pass
         elif freq == MONTHLY:
             
-            # Get the interval. "Each", "Every other", "Every third", etc.
-            p_interval = rrule2text.INTERVAL[interval-1][1]
+            # Get the frequency. "Each", "Every other", "Every third", etc.
+            p_interval = FREQUENCY[interval-1][1]
             text_description.append(p_interval)
 
             # bynweekday is a tuple of (weekday, week_in_month) tuples
             for rule_pair in bynweekday:
 
                 # Get the ordinal.
-                for ord in rrule2text.ORDINAL:
+                for ord in ORDINAL:
                     if ord[0] == rule_pair[1]:
                         text_description.append(ord[1])
                         break
 
                 #  Get the weekday name
                 p_weekday = weekday(rule_pair[0])
-                name = rrule2text.WEEKDAY_MAP[unicode(p_weekday)]
+                name = WEEKDAY_MAP[unicode(p_weekday)]
                 text_description.append(name)
                 
                 text_description.append("at")
@@ -237,7 +247,7 @@ class rr_dict(dict):
         byweekno = rr._byweekno # Which week number a yearly event recurs in.
         byyearday = rr._byyearday # Which day of the year a yearly event recurs in.
         byweekday = rr._byweekday # Which weekday an event recurs in.
-        bynweekday = rr._bynweekday # By negative weekday
+        bynweekday = rr._bynweekday # By the nth weekday, e.g., FR(3) is the third Friday of the period
         byeaster = rr._byeaster
         bymonthday = rr._bymonthday # Relative day of the month
         bynmonthday = rr._bynmonthday # Negative relative day of the month
@@ -249,32 +259,38 @@ class rr_dict(dict):
         # MONTHLY needs to have bymonthday set 
         # WEEKLY needs to have byweekday set
         # Or else they will be filled in from dtstart?
+        
+        # Get the frequency. "Each", "Every other", "Every third", etc.
+        self["frequency"] = FREQUENCY_MAP[freq-1][1]
+        
+        # Initialize the period. The rest of this will be determined by the frequency.
+        self["period"] = ' '.join(["of the", PERIOD_MAP[freq]])
+ 
+        if bynweekday:
+            # 
+            pass
                 
         if freq == YEARLY:
-            pass
+            pass                
         elif freq == MONTHLY:
             
-            # Get the interval. "Each", "Every other", "Every third", etc.
-            p_interval = rrule2text.INTERVAL[interval-1][1]
-            self["frequency"] = p_interval
 
-            # bynweekday is a tuple of (weekday, week_in_month) tuples
+            # bynweekday is a tuple of (weekday, week_in_period) tuples
             for rule_pair in bynweekday:
 
                 # Get the ordinal. TODO handle multiple ordinals
                 ord_text = []
-                for ord in rrule2text.ORDINAL:
+                for ord in ORDINAL_MAP:
                     if ord[0] == rule_pair[1]:
                         ord_text.append(ord[1])
                         break
 
                 #  Get the weekday name
                 p_weekday = weekday(rule_pair[0])
-                name = [rrule2text.WEEKDAY_MAP[unicode(p_weekday)]]
+                name = [WEEKDAY_MAP[unicode(p_weekday)]]
                 ord_text.extend(name)
                 self["interval"] = " ".join(name)
                 
-                self["period"] = "of the month"                
                 
                 self["starting at"] = dtstart
                 
@@ -282,14 +298,19 @@ class rr_dict(dict):
                         
         elif freq == WEEKLY:
             pass
+            
         elif freq == DAILY:
-            pass
+            pass              
+            
         elif freq == HOURLY:
-            pass
+            pass               
+
         elif freq == MINUTELY:
-            pass
+            pass                
+
         elif freq == SECONDLY:
-            pass
+            pass               
+
         else:
             raise Rrule2textError, "Frequency value of %s is not valid." % freq
         
