@@ -1,8 +1,13 @@
 from distutils.core import setup
 
+from rrule2text import get_version
+
 setup(name='rrule2text',
-      version=__import__(rrule2text).get_version().replace(' ', '-'),
+      version=get_version().replace(' ', '-'),
       author="William Bert",
       author_email="william.bert@gmail.com",
-      py_modules=['rrule2text'],
+      packages=['rrule2text'],
+      package_dir={'rrule2text': 'rrule2text'},
+      requires=['dateutil(>=1.5, <2.0)'],
+      provides=['rrule2text'],
       )
