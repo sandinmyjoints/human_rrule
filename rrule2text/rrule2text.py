@@ -217,43 +217,72 @@ class rr_dict(UserDict):
     terminal
     """
     
-    def __init__(self, frequency=1, interval=1, period=YEARLY, time=time(), terminal=datetime.now()):
+    def __init__(self, rrule):
         #self["frequency"] 
-        
         super(rr_dict, self).__init__()
+        self.__rrule = rrule
+        _refresh_dict()
     
-def get_rrule_description(rr_dict):
-    """Returns a string consisting of all the values of an rr_dict in order."""
-    
-    if not isinstance(rr_dict, dict):
-        return ""
+    def _refresh_dict(self):
+        pass
+        # Set the appropriate keys/values
         
+    def get_rrule(self):
+        return self.__rule
+        
+    def set_rrule(self, rrule):
+        self.__rule = rule
+        _refresh_dict()
+        
+    rrule = property(get_rrule, set_rrule)
     
-def get_dict_vals(pdict):
-    """Recursively includes all and only the values of a dictionary in a string. When it encounters a 
-    dictionary, print_dict_vals prints the values of this dictionary, etc including the 
-    values of any dictionaries contained within a dictionary."""
+    
+    def get_description(self):
+        """Returns a string consisting of all the values of an rr_dict in order."""
+        desc = []
+        desc.append(self["frequency"])
+        desc.append(self["interval"])
+        desc.append(self["period"])
+        for d in self["time"]:            
+            desc.append(d["at"])
+            desc.append(d["to"])
+        desc.append(self["terminal"])
 
-    # if pdict is not a dict, return without printing anything
-    if not isinstance(pdict, dict):
-        return
-    list = []
-    _get_dict_vals(pdict, list)
-    return ' '.join(list)
+        return " ".join(desc)
+        
+    def __unicode__(self):
+        return map(unicode, self.get_description())
+        
+    @staticmethod
+    def _get_dict_vals(pdict):
+        """Recursively includes all and only the values of a dictionary in a string. When it encounters a 
+        dictionary, print_dict_vals prints the values of this dictionary, etc including the 
+        values of any dictionaries contained within a dictionary.
+        
+        Returns a list of all the values of the dictionary, including the values of dictionaries
+        within the dictionary, recursively."""
 
-def _get_dict_vals(pdict, list):
-    for v in pdict.values():
-        if isinstance(v, dict):
-            _get_dict_vals(v, list)     
-        else:       
-            list.append(v)
+        # if pdict is not a dict, return without printing anything
+        if not isinstance(pdict, dict):
+            return
+        list = []
+        rr_dict._do_get_dict_vals(pdict, list)
+        return list
+
+    @staticmethod
+    def _do_get_dict_vals(pdict, list):
+        for v in pdict.values():
+            if isinstance(v, dict):
+                rr_dict._do_get_dict_vals(v, list)
+            else:       
+                list.append(v)
             
     
 class rrule2textTests(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_print_dict_vals(self):
+    def test_get_dict_vals(self):
         d1 = { 
             'a': "I",
             'b': {
@@ -267,7 +296,13 @@ class rrule2textTests(unittest.TestCase):
                 },
             'e': "function."
         } 
-        self.assertEquals(get_dict_vals(d1), "I am a recursive but simple function.")
+
+        l = ["I", "am", "a", "recursive", "but", "simple", "function."]
+        dict_vals = rr_dict._get_dict_vals(d1)
+        for i in dict_vals:
+            self.assertIn(i, l)
+        for i in l:
+            self.assertTrue(i, dict_vals)
                 
         
     def test_equals(self):
