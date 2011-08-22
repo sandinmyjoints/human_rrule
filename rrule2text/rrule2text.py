@@ -13,7 +13,6 @@ import sys
 import os
 import unittest
 from datetime import datetime, time
-from UserDict import UserDict
 
 import dateutil
 from dateutil.rrule import * # gets DAILY, WEEKLY, MONTHLY, etc.
@@ -206,7 +205,7 @@ class rrule2text(rr):
     def __ne__(self, other):
         return not (self == other)
         
-class rr_dict(UserDict):
+class rr_dict(dict):
     """Represents a verbal description of an rrule.
     
     Keys: 
@@ -238,7 +237,8 @@ class rr_dict(UserDict):
     
     
     def get_description(self):
-        """Returns a string consisting of all the values of an rr_dict in order."""
+        """Returns a string consisting of all the values of an rr_dict in 
+        an order that reflects an English language description of the rrule."""
         desc = []
         desc.append(self["frequency"])
         desc.append(self["interval"])
@@ -302,7 +302,7 @@ class rrule2textTests(unittest.TestCase):
         for i in dict_vals:
             self.assertIn(i, l)
         for i in l:
-            self.assertTrue(i, dict_vals)
+            self.assertIn(i, dict_vals)
                 
         
     def test_equals(self):
