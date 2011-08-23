@@ -108,9 +108,7 @@ WEEKDAY_LONG_MAP = (
     (5, u'Friday'),
     (6, u'Saturday')
 )
- 
-class human_rruleError(ValueError):
-    pass
+
         
 class human_rrule(dict):
     """Represents a verbal description of an rrule.
@@ -130,6 +128,39 @@ class human_rrule(dict):
         self.__rrule = rrule
         self._refresh_dict()
     
+    def get_rrule(self):
+        return self.__rule
+
+    def set_rrule(self, rrule):
+        self.__rule = rule
+        self._refresh_dict()
+
+    rrule = property(get_rrule, set_rrule)
+    
+    def get_description(self, date_format="%B %d, %Y", time_format="%I:%M %p"):
+        """Returns a string consisting of all the values of an human_rrule in 
+        an order that reflects an English language description of the rrule."""
+        
+        desc = []
+        desc.append(self["frequency"])
+        desc.append(self["interval"])
+        desc.append(self["period"])
+        desc.append("starting at %s" % self["starting at"].strftime(time_format))
+        terminal = ""
+        if isinstance(self["terminal"], datetime):
+            terminal = self["terminal"].strftime(date_format)
+        else:
+            terminal = self["terminal"]
+        desc.append(terminal)
+
+        if self["timezone"]:
+            desc.append("in the %s time zone" % self["timezone"])
+
+        return " ".join(desc)
+        
+    def __unicode__(self):
+        return unicode(self.get_description())
+
     def _refresh_dict(self):
         # Populate the human_rrule components with values based on the properties of 
         # self.__rrule
@@ -149,7 +180,7 @@ class human_rrule(dict):
         bynweekday = rr._bynweekday # By the nth weekday, e.g., FR(3) is the third Friday of the period
         byeaster = rr._byeaster
         bymonthday = rr._bymonthday # Relative day of the month
-        bynmonthday = rr._bynmonthday # Negative relative day of the month
+        bynmonthday = rr._bynmonthday # Relative day of the month, if negative (counting from the end of the month)
         bysetpos = rr._bysetpos # For sets of seconds/minutes/hours/days/weeks/months/years, specifies which position in the list to pay attention to.
         byhour = rr._byhour
         byminute = rr._byminute
@@ -165,17 +196,19 @@ class human_rrule(dict):
         # Initialize the period. The rest of this will be determined by the frequency.
         self["period"] = ' '.join(["of the", PERIOD_MAP[freq]])
  
-        if byyearday:
-            self["interval"] = " ".join(["the ", byyearday, "th day of the year"])
         if bynweekday:
             # 
             pass
                 
         if freq == YEARLY:
-            pass                
-        elif freq == MONTHLY:
-            
-
+            if byyearday:
+                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(byyearday), " day of the year"])
+            if bymonthday:
+                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(bymonthday), " day of the month"])
+            if byweekday:
+                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(byweekday), " day of the week"])
+                
+        elif freq == MONTHLY:            
             # bynweekday is a tuple of (weekday, week_in_period) tuples
             for rule_pair in bynweekday:
 
@@ -187,13 +220,10 @@ class human_rrule(dict):
                 p_weekday = weekday(rule_pair[0])
                 name = [WEEKDAY_MAP[unicode(p_weekday)]]
                 ord_text.extend(name)
-                self["interval"] = " ".join(name)
-                
+                self["interval"] = " ".join(ord_text)                
                 
                 self["starting at"] = dtstart
-                
-                self["lasting to"] = dtstart # TODO fix this
-                        
+                                        
         elif freq == WEEKLY:
             # check wkst to see which day of week is first
             pass
@@ -218,43 +248,12 @@ class human_rrule(dict):
         elif until:
             self["terminal"] = ["until", until]
             
-        self["timezone"] = "%s" % tzinfo
-        
-    def get_rrule(self):
-        return self.__rule
-        
-    def set_rrule(self, rrule):
-        self.__rule = rule
-        self._refresh_dict()
-        
-    rrule = property(get_rrule, set_rrule)
+        self["timezone"] = tzinfo and "%s" % tzinfo or None
     
-    
-    def get_description(self, date_format="%B %d, %Y", time_format="%I:%M %p"):
-        """Returns a string consisting of all the values of an human_rrule in 
-        an order that reflects an English language description of the rrule."""
-        
-        desc = []
-        desc.append(self["frequency"])
-        desc.append(self["interval"])
-        desc.append(self["period"])
-        desc.append("%s" % self["starting at"].strftime(time_format))
-        desc.append("%s" % self["lasting to"].strftime(time_format))
-        terminal = ""
-        if isinstance(self["terminal"], datetime):
-            terminal = self["terminal"].strftime(date_format)
-        else:
-            terminal = self["terminal"]
-        desc.append(terminal)
-        desc.append("in the %s time zone" % self["timezone"])
-
-        return " ".join(desc)
-        
-    def __unicode__(self):
-        return map(unicode, self.get_description())
  
     @staticmethod
     def int_as_ordinal(i):
+        """Return a string representing an int as an ordinal number."""
         num = int2word(i)
         last_num = num.split()[-1:][0]
         if last_num in NUM_ORDINAL_MAP:
@@ -262,13 +261,13 @@ class human_rrule(dict):
             d.append(NUM_ORDINAL_MAP[last_num])
             return " ".join(d)
             
-        return ''.join([num, human_rrule.ordinal_ending(i)])
+        return ''.join([num, human_rrule._ordinal_ending(i)])
     
     # @staticmethod
     # def num_as_ordinal(num):
 
     @staticmethod
-    def ordinal_ending(i):
+    def _ordinal_ending(i):
 
         last_digit = str(i)[-1:]
         if last_digit == '1':
@@ -318,6 +317,7 @@ class human_rruleTests(unittest.TestCase):
         self.assertEqual(human_rrule.int_as_ordinal(44), "forty fourth")
         self.assertEqual(human_rrule.int_as_ordinal(59), "fifty ninth")
         self.assertEqual(human_rrule.int_as_ordinal(160), "one hundred sixtieth")
+        self.assertEqual(human_rrule.int_as_ordinal(200), "two hundredth")
         self.assertEqual(human_rrule.int_as_ordinal(278), "two hundred seventy eighth")
         
     def test_get_dict_vals(self):
@@ -356,10 +356,10 @@ class human_rruleTests(unittest.TestCase):
     #     
     def test_monthly(self):
         # correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
-        correct = "each third Friday of the month starting at 12:00 AM lasting to 1:00 AM ten times"
+        correct = u"each third Friday of the month starting at 12:00 AM ten times"
         testrr = rrule_eq(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
-        rd = human_rrule(testrr)
-        self.assertEqual(rd.get_description(), correct)
+        hr = human_rrule(testrr)
+        self.assertEqual(hr.get_description(), correct)
         
         # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "August 15, 2012"])
         # testrr = human_rrule(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
