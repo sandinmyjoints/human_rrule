@@ -118,10 +118,11 @@ class human_rrule(dict):
     """Represents a verbal description of an rrule.
     
     Keys: 
-    frequency = YEARLY, MONTHLY
-    interval
-    period
-    begin_time
+    frequency = YEARLY, MONTHLY (interval, represented by period)
+    period = of the year, of the month, etc.
+    interval = each, every other, 
+    occurrence = eg, first Sunday, third Friday, tenth day, second hour, seventh second, etc.
+    begin_time = the start time of each occurrence
     terminal = [ ]
     timezone
     """
@@ -148,6 +149,7 @@ class human_rrule(dict):
         desc = []
         # desc.append(self["frequency"])
         desc.append(self["interval"])
+        desc.append(self["occurrence"])
         desc.append(self["period"])
         desc.append("starting at %s" % self.__rrule._dtstart.strftime(time_format))
         if self["terminal"].startswith("until"):            
@@ -196,11 +198,11 @@ class human_rrule(dict):
         # Get the frequency. YEARLY, MONTHLY, etc. 
         # (What I think of as frequency, namely how often this recurrence occurs, e.g.,
         # each time, every other time, every third time, etc., rrule calls interval.)
-        import pdb; pdb.set_trace()
         # self["frequency"] = FREQUENCY_MAP[freq]
         
         # Initialize the period, which is derived from the frequency. 
         self["period"] = ' '.join(["of the", PERIOD_MAP[freq]])
+        self["interval"] = INTERVAL_MAP[interval]
  
         if bynweekday:
             # 
@@ -214,14 +216,13 @@ class human_rrule(dict):
 
                 # Get the ordinal. TODO handle multiple ordinals
                 ord_text = []
-                self["interval"]
                 ord_text.append(human_rrule.int_as_ordinal(rule_pair[1]))
 
                 #  Get the weekday name
                 p_weekday = weekday(rule_pair[0])
                 name = [WEEKDAY_MAP[unicode(p_weekday)]]
                 ord_text.extend(name)
-                self["interval"] = " ".join(ord_text)                
+                self["occurrence"] = " ".join(ord_text)                
                 
                 self["begin_time"] = " ".join(["starting at", str(dtstart)])
                                         
@@ -362,27 +363,17 @@ class human_rruleTests(unittest.TestCase):
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(), correct)
             
-        # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "08/15/2012"])
-        # self.assertListEqual(testrr.text(date_format="%m/%d/%Y"), correct)
-        # 
-        # correct = map(unicode, ["every other", "first", "Sunday", "at", "21:00", "until", "August 15, 2012"])
-        # self.assertListEqual(testrr.text(time_format="%H:%M"), correct)
-    #     
-    # def test_yearly(self):
-    #     correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
-    #     correct = "Each third Friday of the year at 12:00 AM ten times"
-    #     correct_dict = {
-    #                     frequency: "Each",
-    #                     interval: "third Friday",
-    #                     period: "of the year",
-    #                     time: {
-    #                         "at 12:00 AM"
-    #                         "to 1:00 AM"
-    #                     },
-    #                     terminal: "ten times"                        
-    #     }
-    #     testrr = human_rrule(YEARLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
-    #     self.assertListEqual(testrr.text(), correct)
+        correct = u"every other first Sunday of the month starting at 09:00 PM until 08/15/2012"
+        self.assertEqual(hr.get_description(date_format="%m/%d/%Y"), correct)
+        
+        correct = u"every other first Sunday of the month starting at 21:00 until August 15, 2012"
+        self.assertEqual(hr.get_description(time_format="%H:%M"), correct)
+        
+    def test_yearly(self):
+        correct = u"Each third Friday of the year starting at 12:00 AM ten times"
+        testrr = rrule_eq(YEARLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
+        hr = human_rrule(testrr)
+        self.assertEqual(hr.get_description(), correct)
         
 
 
