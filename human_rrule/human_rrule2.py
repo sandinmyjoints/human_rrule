@@ -25,21 +25,22 @@ from int2word import int2word
 
 from rrule_eq import rrule_eq 
 
+VALID_FREQUENCIES = [YEARLY, MONTHLY, DAILY, HOURLY, MINUTELY, SECONDLY]
 
-FREQUENCY_MAP = (
-    (1, u'each'),
-    (2, u'every other'),
-    (3, u'every third'),
-    (4, u'every fourth'),
-    (5, u'every fifth'),
-    (6, u'every sixth'),
-    (7, u'every seventh'),
-    (8, u'every eighth'),
-    (9, u'every ninth'),
-    (10, u'every tenth'),
-    (11, u'every eleventh'),
-    (12, u'every twelfth'),
-)
+INTERVAL_MAP = {
+    1: u'each',
+    2: u'every other',
+    3: u'every third',
+    4: u'every fourth',
+    5: u'every fifth',
+    6: u'every sixth',
+    7: u'every seventh',
+    8: u'every eighth',
+    9: u'every ninth',
+    10: u'every tenth',
+    11: u'every eleventh',
+    12: u'every twelfth',
+}
 
 PERIOD_MAP = {
     YEARLY: "year",
@@ -109,6 +110,9 @@ WEEKDAY_LONG_MAP = (
     (6, u'Saturday')
 )
 
+DEFAULT_DATE_FORMAT = "%B %d, %Y"
+DEFAULT_TIME_FORMAT = "%I:%M %p"
+
         
 class human_rrule(dict):
     """Represents a verbal description of an rrule.
@@ -117,8 +121,8 @@ class human_rrule(dict):
     frequency = YEARLY, MONTHLY
     interval
     period
-    time
-    terminal
+    begin_time
+    terminal = [ ]
     timezone
     """
     
@@ -129,29 +133,27 @@ class human_rrule(dict):
         self._refresh_dict()
     
     def get_rrule(self):
-        return self.__rule
+        return self.__rrule
 
     def set_rrule(self, rrule):
-        self.__rule = rule
+        self.__rule = rrule
         self._refresh_dict()
 
     rrule = property(get_rrule, set_rrule)
     
-    def get_description(self, date_format="%B %d, %Y", time_format="%I:%M %p"):
+    def get_description(self, date_format=DEFAULT_DATE_FORMAT, time_format=DEFAULT_TIME_FORMAT):
         """Returns a string consisting of all the values of an human_rrule in 
         an order that reflects an English language description of the rrule."""
         
         desc = []
-        desc.append(self["frequency"])
+        # desc.append(self["frequency"])
         desc.append(self["interval"])
         desc.append(self["period"])
-        desc.append("starting at %s" % self["starting at"].strftime(time_format))
-        terminal = ""
-        if isinstance(self["terminal"], datetime):
-            terminal = self["terminal"].strftime(date_format)
+        desc.append("starting at %s" % self.__rrule._dtstart.strftime(time_format))
+        if self["terminal"].startswith("until"):            
+            desc.append(' '.join(["until", self.__rrule._until.strftime(date_format)]))
         else:
-            terminal = self["terminal"]
-        desc.append(terminal)
+            desc.append(self["terminal"])
 
         if self["timezone"]:
             desc.append("in the %s time zone" % self["timezone"])
@@ -165,8 +167,9 @@ class human_rrule(dict):
         # Populate the human_rrule components with values based on the properties of 
         # self.__rrule
         rr = self.__rrule
-        
         dtstart = rr._dtstart # datetime of when each occurrence starts. Defaults to now, down to the second.
+        if not rr._freq in VALID_FREQUENCIES:
+            raise ValueError, "Invalid frequency in rrule: %s" % rr._freq
         freq = rr._freq # when the recurrence recurs, secondly through yearly. Required.
         interval = rr._interval # how often the recurrence happens, each time through every nth time. Defaults to 1.
         wkst = rr._wkst # Week start day, ie, an int representing which day of the week starts the week, usually Sunday or Monday. Defaults to calendar.firstweekday().
@@ -190,10 +193,13 @@ class human_rrule(dict):
         # WEEKLY needs to have byweekday set
         # Or else they will be filled in from dtstart?
         
-        # Get the frequency. "Each", "Every other", "Every third", etc.
-        self["frequency"] = FREQUENCY_MAP[freq-1][1]
+        # Get the frequency. YEARLY, MONTHLY, etc. 
+        # (What I think of as frequency, namely how often this recurrence occurs, e.g.,
+        # each time, every other time, every third time, etc., rrule calls interval.)
+        import pdb; pdb.set_trace()
+        # self["frequency"] = FREQUENCY_MAP[freq]
         
-        # Initialize the period. The rest of this will be determined by the frequency.
+        # Initialize the period, which is derived from the frequency. 
         self["period"] = ' '.join(["of the", PERIOD_MAP[freq]])
  
         if bynweekday:
@@ -201,19 +207,14 @@ class human_rrule(dict):
             pass
                 
         if freq == YEARLY:
-            if byyearday:
-                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(byyearday), " day of the year"])
-            if bymonthday:
-                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(bymonthday), " day of the month"])
-            if byweekday:
-                self["interval"] = " ".join(["the ", human_rrule.int_as_ordinal(byweekday), " day of the week"])
-                
+            pass
         elif freq == MONTHLY:            
             # bynweekday is a tuple of (weekday, week_in_period) tuples
             for rule_pair in bynweekday:
 
                 # Get the ordinal. TODO handle multiple ordinals
                 ord_text = []
+                self["interval"]
                 ord_text.append(human_rrule.int_as_ordinal(rule_pair[1]))
 
                 #  Get the weekday name
@@ -222,7 +223,7 @@ class human_rrule(dict):
                 ord_text.extend(name)
                 self["interval"] = " ".join(ord_text)                
                 
-                self["starting at"] = dtstart
+                self["begin_time"] = " ".join(["starting at", str(dtstart)])
                                         
         elif freq == WEEKLY:
             # check wkst to see which day of week is first
@@ -244,9 +245,9 @@ class human_rrule(dict):
             raise human_rruleError, "Frequency value of %s is not valid." % freq
         
         if count:
-            self["terminal"] = "%s %s" % (int2word(count).rstrip(), "times")
+            self["terminal"] = "%s times" % int2word(count).rstrip()
         elif until:
-            self["terminal"] = ["until", until]
+            self["terminal"] = "until %s" % until.strftime(DEFAULT_DATE_FORMAT)
             
         self["timezone"] = tzinfo and "%s" % tzinfo or None
     
@@ -343,28 +344,24 @@ class human_rruleTests(unittest.TestCase):
             self.assertIn(i, dict_vals)
         
         
-    # def test_invalid_freq(self):
-    #     testrr = human_rrule(8, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(human_rruleError, testrr.text)
-    # 
-    #     testrr = human_rrule("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(human_rruleError, testrr.text)
-    # 
-    #     testrr = human_rrule(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
-    #     self.assertRaises(human_rruleError, testrr.text)
-    #     
-    #     
+    def test_invalid_freq(self):    
+        testrr = rrule_eq("a", byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+        self.assertRaises(ValueError, human_rrule, rrule=testrr)
+    
+        testrr = rrule_eq(None, byweekday=MO, dtstart=datetime(2011, 8, 15), until=datetime(2012, 8, 15))
+        self.assertRaises(ValueError, human_rrule, rrule=testrr)
+
     def test_monthly(self):
-        # correct = map(unicode, ["each", "third", "Friday", "at", "12:00 AM", "ten times"])
         correct = u"each third Friday of the month starting at 12:00 AM ten times"
         testrr = rrule_eq(MONTHLY, byweekday=FR(3), dtstart=datetime(2011, 8, 15), count=10)
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(), correct)
         
-        # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "August 15, 2012"])
-        # testrr = human_rrule(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
-        # self.assertListEqual(testrr.text(), correct)
-        #     
+        correct = u"every other first Sunday of the month starting at 09:00 PM until August 15, 2012"
+        testrr = rrule_eq(MONTHLY, interval=2, byweekday=SU(1), dtstart=datetime(2011, 8, 15, 21, 0, 0), until=datetime(2012, 8, 15))
+        hr = human_rrule(testrr)
+        self.assertEqual(hr.get_description(), correct)
+            
         # correct = map(unicode, ["every other", "first", "Sunday", "at", "09:00 PM", "until", "08/15/2012"])
         # self.assertListEqual(testrr.text(date_format="%m/%d/%Y"), correct)
         # 

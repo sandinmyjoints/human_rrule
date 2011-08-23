@@ -57,6 +57,33 @@ class rrule_eq(rr):
     def __ne__(self, other):
         return not (self == other)
 
+    def _pprint(self):
+        """Temp method"""
+        attrs = [
+         '_byeaster',
+         '_byhour',
+         '_byminute',
+         '_bymonth',
+         '_bymonthday',
+         '_bynmonthday',
+         '_bynweekday',
+         '_bysecond',
+         '_bysetpos',
+         '_byweekday',
+         '_byweekno',
+         '_byyearday',
+         '_count',
+         '_dtstart',
+         '_freq',
+         '_interval',
+         '_timeset',
+         '_tzinfo',
+         '_until',
+         '_wkst',
+        ]
+         
+        for p in attrs:
+            print "%s\t\t%s" % (p, getattr(self, p))
 
 class rrule_eqTests(unittest.TestCase):
     def setUp(self):
