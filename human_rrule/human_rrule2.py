@@ -151,8 +151,7 @@ class human_rrule(dict):
         desc.append(self["interval"])
         desc.append(self["occurrence"])
         desc.append(self["period"])
-        import pdb; pdb.set_trace()
-        desc.append("starting at %s" % self.__rrule._timeset.strftime(time_format))
+        desc.append("starting at %s" % self.__rrule._timeset[0].strftime(time_format)) # TODO fix for multiple times in _timeset--when would this be the case?
         if self["terminal"].startswith("until"):            
             desc.append(' '.join(["until", self.__rrule._until.strftime(date_format)]))
         else:
@@ -355,27 +354,27 @@ class human_rruleTests(unittest.TestCase):
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(), correct)
         
-    def test_get_dict_vals(self):
-        d1 = { 
-            'a': "I",
-            'b': {
-                'a': "am",
-                'b': "a"
-                },
-            'c': "recursive",
-            'd': {
-                "a": "but",
-                "b": "simple"
-                },
-            'e': "function."
-        } 
+    # def test_get_dict_vals(self):
+        # d1 = { 
+            # 'a': "I",
+            # 'b': {
+                # 'a': "am",
+                # 'b': "a"
+                # },
+            # 'c': "recursive",
+            # 'd': {
+                # "a": "but",
+                # "b": "simple"
+                # },
+            # 'e': "function."
+        # } 
 
-        l = ["I", "am", "a", "recursive", "but", "simple", "function."]
-        dict_vals = human_rrule._get_dict_vals(d1)
-        for i in dict_vals:
-            self.assertIn(i, l)
-        for i in l:
-            self.assertIn(i, dict_vals)
+        # l = ["I", "am", "a", "recursive", "but", "simple", "function."]
+        # dict_vals = human_rrule._get_dict_vals(d1)
+        # for i in dict_vals:
+            # self.assertIn(i, l)
+        # for i in l:
+            # self.assertIn(i, dict_vals)
 
 if __name__ == '__main__':
     unittest.main()
