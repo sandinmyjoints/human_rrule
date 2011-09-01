@@ -151,7 +151,8 @@ class human_rrule(dict):
         desc.append(self["interval"])
         desc.append(self["occurrence"])
         desc.append(self["period"])
-        desc.append("starting at %s" % self.__rrule._dtstart.strftime(time_format))
+        import pdb; pdb.set_trace()
+        desc.append("starting at %s" % self.__rrule._timeset.strftime(time_format))
         if self["terminal"].startswith("until"):            
             desc.append(' '.join(["until", self.__rrule._until.strftime(date_format)]))
         else:
@@ -190,6 +191,7 @@ class human_rrule(dict):
         byhour = rr._byhour
         byminute = rr._byminute
         bysecond = rr._bysecond
+        timeset = rr._timeset # The time the occurrence is set to. None if freq >= HOURLY
         # YEARLY needs to have bymonth and bymonthday set
         # MONTHLY needs to have bymonthday set 
         # WEEKLY needs to have byweekday set
@@ -224,7 +226,7 @@ class human_rrule(dict):
                 ord_text.extend(name)
                 self["occurrence"] = " ".join(ord_text)                
                 
-                self["begin_time"] = " ".join(["starting at", str(dtstart)])
+                self["begin_time"] = " ".join(["starting at", str(timeset)])
                                         
         elif freq == WEEKLY:
             # check wkst to see which day of week is first
@@ -320,29 +322,7 @@ class human_rruleTests(unittest.TestCase):
         self.assertEqual(human_rrule.int_as_ordinal(59), "fifty ninth")
         self.assertEqual(human_rrule.int_as_ordinal(160), "one hundred sixtieth")
         self.assertEqual(human_rrule.int_as_ordinal(200), "two hundredth")
-        self.assertEqual(human_rrule.int_as_ordinal(278), "two hundred seventy eighth")
-        
-    def test_get_dict_vals(self):
-        d1 = { 
-            'a': "I",
-            'b': {
-                'a': "am",
-                'b': "a"
-                },
-            'c': "recursive",
-            'd': {
-                "a": "but",
-                "b": "simple"
-                },
-            'e': "function."
-        } 
-
-        l = ["I", "am", "a", "recursive", "but", "simple", "function."]
-        dict_vals = human_rrule._get_dict_vals(d1)
-        for i in dict_vals:
-            self.assertIn(i, l)
-        for i in l:
-            self.assertIn(i, dict_vals)
+        self.assertEqual(human_rrule.int_as_ordinal(278), "two hundred seventy eighth")    
         
         
     def test_invalid_freq(self):    
@@ -375,7 +355,27 @@ class human_rruleTests(unittest.TestCase):
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(), correct)
         
+    def test_get_dict_vals(self):
+        d1 = { 
+            'a': "I",
+            'b': {
+                'a': "am",
+                'b': "a"
+                },
+            'c': "recursive",
+            'd': {
+                "a": "but",
+                "b": "simple"
+                },
+            'e': "function."
+        } 
 
+        l = ["I", "am", "a", "recursive", "but", "simple", "function."]
+        dict_vals = human_rrule._get_dict_vals(d1)
+        for i in dict_vals:
+            self.assertIn(i, l)
+        for i in l:
+            self.assertIn(i, dict_vals)
 
 if __name__ == '__main__':
     unittest.main()
