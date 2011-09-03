@@ -457,13 +457,7 @@ class human_rruleTests(unittest.TestCase):
         testrr = rrule_eq(HOURLY, dtstart=datetime(2011, 8, 15), count=10)
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(time_format="%H:%M:%S %p"), correct)        
-        
-    def test_daily(self):
-        correct = "each day of the month in January starting at 12:00 AM January 1, 2011 until January 31, 2013"
-        testrr = rrule_eq(DAILY, dtstart=datetime(2011, 1, 1), until=datetime(2013, 1, 31), bymonth=1)
-        hr = human_rrule(testrr)
-        self.assertEqual(hr.get_description(time_format="%H:%M:%S %p"), correct)        
-    
+            
     def test_weekly(self):
         correct = u"each Monday of the week starting at 12:00 AM August 15, 2011 ten times"
         testrr = rrule_eq(WEEKLY, dtstart=datetime(2011, 8, 15), count=10)
@@ -478,11 +472,6 @@ class human_rruleTests(unittest.TestCase):
 
         correct = u"each Tuesday of the year starting at 12:00 AM August 16, 2011 ten times"
         testrr = rrule_eq(YEARLY, dtstart=datetime(2011, 8, 15), count=10, byweekday=TU)
-        hr = human_rrule(testrr)
-        self.assertEqual(hr.get_description(), correct)
-
-        correct = "each Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday in January starting at 12:00 AM January 1, 2011 until January 31, 2013"
-        testrr = rrule_eq(YEARLY, dtstart=datetime(2011, 1, 1), until=datetime(2013, 1, 31), bymonth=1, byweekday=(SU, MO, TU, WE, TH, FR, SA))
         hr = human_rrule(testrr)
         self.assertEqual(hr.get_description(), correct)
 
